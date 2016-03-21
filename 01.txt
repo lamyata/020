@@ -1,0 +1,14 @@
+        static void Main(string[] args)
+        {
+            string connString = @"Data Source=(LocalDB)\MSSQLLocalDB;";
+            SqlConnection myConnection = new SqlConnection(
+                @"AttachDbFilename=C:\proj\db\SportsStore.mdf;Integrated Security=True; Connect Timeout = 30");
+            myConnection.Open();
+            var myCommand = new SqlCommand("select * from products");
+            myCommand.Connection = myConnection;
+            var myReader = myCommand.ExecuteReader();
+            while (myReader.Read())
+            {
+                Console.WriteLine(myReader.GetValue(0));
+            }
+        }
