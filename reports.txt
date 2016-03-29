@@ -14,7 +14,10 @@ Conclustions: 1. CanExecute is not run for child reports.
 3. VERY IMPORTANT: CanExecute is run in a separate instance of controller class.
 Any private variables of the controller class set (used) in CanExecute will be blank (they will be reinitialized) in subsequent methods (e.g. LoadInputData, FillDataSet, etc.)
 
----
+----
+To test logo paste in doc controller in FillReportParams
+parameters["logoFilePath"] = @".\content\iBoris\logo.png";
+----
 
 TranshipmentLoadingReport
 Launched from TransportDetail.
