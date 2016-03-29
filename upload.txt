@@ -1,0 +1,15 @@
+1. Warn any affected parties of the impending upload.
+2. Stop all websites, stop application pools, stop application server windows service.
+3. Backup DB.
+4. Copy deployment package to server and extract.
+5. Locate dacpac folder and make sure TargetDatabaseName is correct in the publish.xml file.
+	- you may have to change iTos.VMG to just iTos
+6. Open cmd window and run dacpac with the command: DatabaseUpgrade.cmd [server\instance]
+	- in our case this should be: DatabaseUpgrade.cmd VMG08S
+7. Update install.cmd, setting up old version, double check all project paths, etc.
+8. Run install.cmd
+
+9. Run following statement in iTos database, to ensure that "read_committed_snapshot" is ON. 
+Result: 1 = ON, 0 = OFF
+
+SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name= 'iTos'

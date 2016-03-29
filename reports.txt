@@ -1,0 +1,22 @@
+init_rpt_menu -> CanExecute
+
+Gen_Report
+1. CanExecute
+2. LoadInputData
+3. FillDataSet
+4. FillReportParameters
+5. GetChildReportData
+  A. LoadInputData
+	B. FillDataSet
+	
+Conclustions: 1. CanExecute is not run for child reports.
+2. CanExecute is run when menu is inited and when rpt is generated.
+3. VERY IMPORTANT: CanExecute is run in a separate instance of controller class.
+Any private variables of the controller class set (used) in CanExecute will be blank (they will be reinitialized) in subsequent methods (e.g. LoadInputData, FillDataSet, etc.)
+
+---
+
+TranshipmentLoadingReport
+Launched from TransportDetail.
+Data for the report is collected from LoadingOperationReports linked to that transport that have operationname like "transhipment"
+Data is grouped by (rpt => new {rpt.OperationReport.OrderItem, rpt.Reported.StockInfoConfig.Key}
