@@ -9,5 +9,5 @@ select * from PRODUCT_PROPERTY_PR_VALUE ppv join PRODUCT_PROPERTY pp on ppv.PROD
 begin tran
 update ppv set PROPERTY_VALUE = 'NA' from
 	[PRODUCT_PROPERTY_VALUE] ppv join PRODUCT_PROPERTY pp on ppv.PRODUCT_PROPERTY_ID = pp.PRODUCT_PROPERTY_ID
-	and pp.[DESCRIPTION] in ('UN Number', 'MSDS-Id') and ppv.PROPERTY_VALUE = 'TBD'
+	and pp.[DESCRIPTION] in ('UN Number', 'MSDS-Id', 'Origin') and ppv.PROPERTY_VALUE = 'TBD'
 rollback
