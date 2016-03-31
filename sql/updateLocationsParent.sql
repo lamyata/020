@@ -8,5 +8,6 @@ BEGIN
 		[PATH] = parent.[PATH] + cast(parent.LOCATION_ID as nvarchar(20)) + '|'
 		from [LOCATION] loc, [LOCATION] parent
 		where loc.[ADDRESS] like @paddr + '_' and loc.PARENT_ID is null and parent.[ADDRESS] = @paddr
+	update loc set HAS_CHILDREN = 1 from [LOCATION] loc where ADDRESS = @paddr
 	SET @cnt = @cnt + 1;
 END;
