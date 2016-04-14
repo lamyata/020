@@ -1,0 +1,7 @@
+1. Since AddressID is an IDENTITY column, you need to use the _______ expression to insert a special value.
+2. Since only one ________ is allowed on for a database, you need to turn it off after an INSERT.
+3. Do a DBCC CHECKIDENT after using an IDENTITY_INSERT to ensure that the IDENTITY property has the next correct identity value.
+
+1. IDENTITY_INSERT
+2. IDENTITY_INSERT
+3. DBCC CHECKIDENT
