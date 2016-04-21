@@ -1,34 +1,11 @@
-INSERT INTO [dbo].[TARIFF_FILE]
-	([DESCRIPTION]
-	,[REFERENCE]
-	,[STATUS]
-	,[INTERNAL_COMPANY_ID]
-	,[OPERATION_TYPE_ID]
-	,[CREATE_USER]
-	,[CREATE_TIMESTAMP]
-	,[UPDATE_USER]
-	,[UPDATE_TIMESTAMP])
-SELECT TOP 1
-	'CRI Tariffs'
-	,'CRI_TARIFF'
-	,0
-	,COMPANYNR
-	,NULL -- OPERATION_TYPE_ID
-	,'sys'
-	,getdate()
-	,'sys'
-	,getdate()
-FROM COMPANY c
-WHERE c.CODE = 'CRI'
-go
-
-create proc #CreateTariff
+create proc #CreateTariffInternal
 	@TariffInfoCode nvarchar(250),
 	@TariffInfoDescr nvarchar(250),
 	@TariffInfoTariff decimal(18,3),
 	@UnitCode nvarchar(50),
 	@CurrencyCode nvarchar(3),
-	@OperationCode nvarchar(50)
+	@OperationCode nvarchar(50),
+	@TariffInfoId int output
 as
 	declare @OperationId int
 begin
@@ -64,6 +41,8 @@ begin
 		UNIT u, CURRENCY c
 		WHERE u.CODE = @UnitCode AND c.CODE = @CurrencyCode
 
+	select @TariffInfoId = SCOPE_IDENTITY();
+		
 	INSERT INTO [dbo].[TARIFF]
 			   ([TARIFF_FILE_ID]
 			   ,[OPERATION_ID]
@@ -86,76 +65,156 @@ begin
 			   ,getdate()
 			   ,'sys'
 			   ,getdate()
-	FROM TARIFF_INFO ti, TARIFF_FILE tf, OPERATION op
+	FROM TARIFF_INFO ti, TARIFF_FILE tf
 	WHERE ti.CODE = @TariffInfoCode AND tf.REFERENCE = 'CRI_TARIFF'
 
+	set nocount off
+	
 	return SCOPE_IDENTITY();
 end
-
 go
 
-declare @TariffId int
-exec @TariffId = #CreateTariff 'DCTR2WH', 'Discharging into warehouse (ex-truck/container)', 3.99, 'PALLET', 'EUR', 'DISCH_OPER_CODE'
-	INSERT INTO [dbo].[DISCHARGING_TARIFF]
-			   ([DISCHARGING_TARIFF_ID]
-			   ,[STOCK_INFO_ID]
-			   ,[CREATE_USER]
-			   ,[CREATE_TIMESTAMP]
-			   ,[UPDATE_USER]
-			   ,[UPDATE_TIMESTAMP])
-		 VALUES
-			   (@TariffId
-			   ,NULL --STOCK_INFO_ID
-			   ,'sys'
-			   ,getdate()
-			   ,'sys'
-			   ,getdate())
-				 
-exec @TariffId = #CreateTariff 'LDEXWH2TR', 'Loading ex-warehouse (into truck/container)', 3.39, 'PALLET', 'EUR', 'LOAD_OPER_CODE'
-	INSERT INTO [dbo].[LOADING_TARIFF]
-			   ([LOADING_TARIFF_ID]
-			   ,[STOCK_INFO_ID]
-			   ,[CREATE_USER]
-			   ,[CREATE_TIMESTAMP]
-			   ,[UPDATE_USER]
-			   ,[UPDATE_TIMESTAMP])
-		 VALUES
-			   (@TariffId
-			   ,NULL --STOCK_INFO_ID
-			   ,'sys'
-			   ,getdate()
-			   ,'sys'
-			   ,getdate())
-				 
-exec @TariffId = #CreateTariff 'SKUCHANGEAFTER72HRS', 'VAS - SKU Change (after 72 hrs or more)', 5.5, 'PALLET', 'EUR', 'VAS_OPER_CODE'
-	INSERT INTO [dbo].[VAS_TARIFF]
-			   ([VAS_TARIFF_ID]
-			   ,[STOCK_INFO_ID]
-			   ,[CREATE_USER]
-			   ,[CREATE_TIMESTAMP]
-			   ,[UPDATE_USER]
-			   ,[UPDATE_TIMESTAMP])
-		 VALUES
-			   (@TariffId
-			   ,NULL --STOCK_INFO_ID
-			   ,'sys'
-			   ,getdate()
-			   ,'sys'
-			   ,getdate())			
+create proc #AddRange
+	declare @TariffInfoId int,
+	declare @Tariff decimal (18,3),
+	declare @RangeFrom decimal (38,3),
+	declare @RangeTo decimal (38,8),
+	declare @UnitCode nvarchar(50),
+	declare @MeasurementUnitCode  nvarchar(50)
+as
+	declare @UnitId int
+	declare @MeasurementUnitId int
+	declare @TariffRangeId int
+begin
 
-exec @TariffId = #CreateTariff 'WTHRZBB', 'Weatherizing Big Bags', 4.9, 'BIGBAG', 'EUR', 'ADDITIONAL_OPER_CODE'
-	INSERT INTO [dbo].[ADDITIONAL_TARIFF]
-			   ([ADDITIONAL_TARIFF_ID]
-			   ,[STOCK_INFO_ID]
-			   ,[CREATE_USER]
-			   ,[CREATE_TIMESTAMP]
-			   ,[UPDATE_USER]
-			   ,[UPDATE_TIMESTAMP])
+	select @UnitId = UNIT_ID from UNIT where CODE = @UnitCode
+	select @MeasurementUnitId = UNIT_ID from UNIT where CODE = @MeasurementUnitCode
+
+	INSERT INTO [dbo].[TARIFF_RANGE]
+		 ([TARIFF]
+		 ,[RANGE_FROM]
+		 ,[RANGE_TO]
+		 ,[UNIT_ID]
+		 ,[MEASUREMENT_UNIT_ID]
+		 ,[CREATE_USER]
+		 ,[CREATE_TIMESTAMP]
+		 ,[UPDATE_USER]
+		 ,[UPDATE_TIMESTAMP])
+	 VALUES
+		 (@Tariff
+		 ,@RangeFrom
+		 ,@RangeTo
+		 ,@UnitId
+		 ,@MeasurementUnitId
+		 ,'sys'
+		 ,getdate()
+		 ,'sys'
+		 ,getdate())		
+		 
+	SELECT @TariffRangeId = SCOPE_IDENTITY();
+					 
+	INSERT INTO [dbo].[TARIFF_INFO_RANGE]
+		 ([TARIFF_INFO_ID]
+		 ,[TARIFF_RANGE_ID])
+	 VALUES
+		 (@TariffInfoId
+		 ,@TariffRangeId)					 
+
+end	
+go
+
+create proc #CreateTariff
+	@TariffInfoCode nvarchar(250),
+	@TariffInfoDescr nvarchar(250),
+	@TariffInfoTariff decimal(18,3),
+	@UnitCode nvarchar(50),
+	@CurrencyCode nvarchar(3),
+	@OperationCode nvarchar(50),
+	@OperationType nvarchar(10),
+	@TariffInfoId int output
+as
+	declare @TariffId int,
+begin
+	exec @TariffId = #CreateTariffInternal @TariffInfoCode, @TariffInfoDescr, @TariffInfoTariff, @UnitCode, @CurrencyCode, @OperationCode, @TariffInfoId output
+	if CHARINDEX(N'D', @OperationType) > 0
+		INSERT INTO [dbo].[DISCHARGING_TARIFF]
+			 ([DISCHARGING_TARIFF_ID]
+			 ,[STOCK_INFO_ID]
+			 ,[CREATE_USER]
+			 ,[CREATE_TIMESTAMP]
+			 ,[UPDATE_USER]
+			 ,[UPDATE_TIMESTAMP])
 		 VALUES
-			   (@TariffId
-			   ,NULL --STOCK_INFO_ID
-			   ,'sys'
-			   ,getdate()
-			   ,'sys'
-			   ,getdate())		
-				 
+			 (@TariffId
+			 ,NULL --STOCK_INFO_ID
+			 ,'sys'
+			 ,getdate()
+			 ,'sys'
+			 ,getdate())
+		 
+	if CHARINDEX(N'L', @OperationType) > 0
+		INSERT INTO [dbo].[LOADING_TARIFF]
+			 ([LOADING_TARIFF_ID]
+			 ,[STOCK_INFO_ID]
+			 ,[CREATE_USER]
+			 ,[CREATE_TIMESTAMP]
+			 ,[UPDATE_USER]
+			 ,[UPDATE_TIMESTAMP])
+		 VALUES
+			 (@TariffId
+			 ,NULL --STOCK_INFO_ID
+			 ,'sys'
+			 ,getdate()
+			 ,'sys'
+			 ,getdate())
+
+	if CHARINDEX(N'V', @OperationType) > 0
+		INSERT INTO [dbo].[VAS_TARIFF]
+					 ([VAS_TARIFF_ID]
+					 ,[CREATE_USER]
+					 ,[CREATE_TIMESTAMP]
+					 ,[UPDATE_USER]
+					 ,[UPDATE_TIMESTAMP])
+			 VALUES
+					 (@TariffId
+					 ,'sys'
+					 ,getdate()
+					 ,'sys'
+					 ,getdate())
+					 
+	if CHARINDEX(N'S', @OperationType) > 0
+		INSERT INTO [dbo].[STOCK_CHANGE_TARIFF]
+					 ([STOCK_CHANGE_TARIFF_ID]
+					 ,[CREATE_USER]
+					 ,[CREATE_TIMESTAMP]
+					 ,[UPDATE_USER]
+					 ,[UPDATE_TIMESTAMP])
+			 VALUES
+					 (@TariffId
+					 ,'sys'
+					 ,getdate()
+					 ,'sys'
+					 ,getdate())
+
+	if CHARINDEX(N'A', @OperationType) > 0
+		INSERT INTO [dbo].[ADDITIONAL_TARIFF]
+					 ([ADDITIONAL_TARIFF_ID]
+					 ,[CREATE_USER]
+					 ,[CREATE_TIMESTAMP]
+					 ,[UPDATE_USER]
+					 ,[UPDATE_TIMESTAMP])
+			 VALUES
+					 (@TariffId
+					 ,'sys'
+					 ,getdate()
+					 ,'sys'
+					 ,getdate())		 
+end
+go
+
+declare @TariffInfoId int;
+exec #CreateTariff 'TSD2WH', 'Discharging into warehouse', 0, 'PIECE', 'EUR', 'DISCH_OPER_CODE', 'D', @TariffInfoId output
+exec #AddRange  @TariffInfoId, 10, null, 3000, 'KG', null
+exec #AddRange  @TariffInfoId, 50, 3000.01, 8000, 'KG', null
+exec #AddRange  @TariffInfoId, 75, 8000.01, null, 'KG', null
+
