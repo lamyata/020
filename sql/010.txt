@@ -1,0 +1,37 @@
+SQL Server: Difference between PARTITION BY and GROUP BY
+
+ see also expl in wpedia
+
+ROW_NUMBER() window function
+
+ROW_NUMBER() OVER may be used for a simple table on the returned rows, e.g. to return no more than ten rows:
+
+SELECT * FROM
+( SELECT
+ROW_NUMBER() OVER (ORDER BY sort_key ASC) AS row_number,
+columns
+FROM tablename
+) AS foo
+WHERE row_number <= 11
+
+ROW_NUMBER can be non-deterministic: if sort_key is not unique, each time you run the query it is possible to get different row numbers assigned to any rows where sort_key is the same. When sort_key is unique, each row will always get a unique row number.
+RANK() window function
+
+The RANK() OVER window function acts like ROW_NUMBER, but may return more than n rows in case of tie conditions, e.g. to return the top-10 youngest persons:
+
+SELECT * FROM (
+SELECT
+RANK() OVER (ORDER BY age ASC) AS ranking,
+person_id,
+person_name,
+age
+FROM person
+)AS foo
+WHERE ranking <= 10
+
+The above code could return more than ten rows, e.g. if there are two people of the same age, it could return eleven rows.
+
+---
+JournalDaoNhibernate.cs
+InternalCompany internalCompany = null;
+query.JoinAlias(x => x.InternalCompany, () => internalCompany, JoinType.LeftOuterJoin);

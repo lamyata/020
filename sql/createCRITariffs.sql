@@ -1,3 +1,17 @@
+/*
+CREATE TABLE [dbo].[VAS_TARIFF]
+(
+    [VAS_TARIFF_ID] int NOT NULL,
+    [CREATE_USER] nvarchar(100) NOT NULL,
+    [CREATE_TIMESTAMP] datetime2(7) NOT NULL,
+    [UPDATE_USER] nvarchar(100) NOT NULL,
+    [UPDATE_TIMESTAMP] datetime2(7) NOT NULL,
+    CONSTRAINT [PK_VAS_TARIFF] PRIMARY KEY CLUSTERED ([VAS_TARIFF_ID] ASC),
+    CONSTRAINT [FK_VAS_TARIFF_TARIFF] FOREIGN KEY ([VAS_TARIFF_ID]) REFERENCES [dbo].[TARIFF] ([TARIFF_ID])
+)
+*/
+
+-- add static data
 INSERT INTO [dbo].[TARIFF_FILE]
 	([DESCRIPTION]
 	,[REFERENCE]
@@ -20,6 +34,55 @@ SELECT TOP 1
 	,getdate()
 FROM COMPANY c
 WHERE c.CODE = 'IC_VMHZP'
+
+INSERT INTO [dbo].[UNIT]
+           ([DESCRIPTION]
+           ,[CREATE_USER]
+           ,[CREATE_TIMESTAMP]
+           ,[UPDATE_USER]
+           ,[UPDATE_TIMESTAMP]
+           ,[STATUS]
+           ,[CODE])
+     VALUES
+           ('Label' -- DESCRIPTION
+           ,'sys'
+           ,getdate()
+           ,'sys'
+           ,getdate()
+           ,1 -- STATUS
+           ,'LBL')
+INSERT INTO [dbo].[UNIT]
+           ([DESCRIPTION]
+           ,[CREATE_USER]
+           ,[CREATE_TIMESTAMP]
+           ,[UPDATE_USER]
+           ,[UPDATE_TIMESTAMP]
+           ,[STATUS]
+           ,[CODE])
+     VALUES
+           ('Stencil' -- DESCRIPTION
+           ,'sys'
+           ,getdate()
+           ,'sys'
+           ,getdate()
+           ,1 -- STATUS
+           ,'STENCIL')					 
+INSERT INTO [dbo].[UNIT]
+           ([DESCRIPTION]
+           ,[CREATE_USER]
+           ,[CREATE_TIMESTAMP]
+           ,[UPDATE_USER]
+           ,[UPDATE_TIMESTAMP]
+           ,[STATUS]
+           ,[CODE])
+     VALUES
+           ('Hour' -- DESCRIPTION
+           ,'sys'
+           ,getdate()
+           ,'sys'
+           ,getdate()
+           ,1 -- STATUS
+           ,'HR')
 go
 
 create proc #CreateTariffInternal
@@ -27,14 +90,20 @@ create proc #CreateTariffInternal
 	@TariffInfoDescr nvarchar(250),
 	@TariffInfoTariff decimal(18,3),
 	@UnitCode nvarchar(50),
+	@MeasurementUnitCode  nvarchar(50),
 	@CurrencyCode nvarchar(3),
-	@OperationCode nvarchar(50)
+	@OperationCode nvarchar(50),
+	@CustomerCode nvarchar(50)
 as
 	declare @OperationId int
+	declare @TariffId int
+	declare @MeasurementUnitId int
 begin
 	set nocount on
 
-	select @OperationId = OPERATION_ID from OPERATION where CODE = @OperationCode
+	select @OperationId = [OPERATION_ID] from [OPERATION] where [CODE] = @OperationCode;
+	if (IsNull(@MeasurementUnitCode,'')!='')
+		select @MeasurementUnitId = [UNIT_ID] from [UNIT] where [CODE] = @MeasurementUnitCode;
 
 	INSERT INTO [dbo].[TARIFF_INFO]
 			([CODE]
@@ -53,7 +122,7 @@ begin
 			,@TariffInfoDescr
 			,@TariffInfoTariff
 			,UNIT_ID
-			,NULL --MEASUREMENT_UNIT_ID
+			,@MeasurementUnitId
 			,CURRENCY_ID
 			--,SERVICE_ACCOUNT nvarchar(50)
 			,'sys'
@@ -62,7 +131,7 @@ begin
 			,getdate()
 	FROM
 		UNIT u, CURRENCY c
-		WHERE u.CODE = @UnitCode AND c.CODE = @CurrencyCode
+		WHERE u.CODE = @UnitCode AND c.CODE = @CurrencyCode;
 
 	INSERT INTO [dbo].[TARIFF]
 			   ([TARIFF_FILE_ID]
@@ -87,11 +156,23 @@ begin
 			   ,'sys'
 			   ,getdate()
 	FROM TARIFF_INFO ti, TARIFF_FILE tf
-	WHERE ti.CODE = @TariffInfoCode AND tf.REFERENCE = 'CRI_TARIFF'
+	WHERE ti.CODE = @TariffInfoCode AND tf.REFERENCE = 'CRI_TARIFF';
 
-	set nocount off
+	select @TariffId = SCOPE_IDENTITY();
+
+	if @CustomerCode is not null
+		INSERT INTO [dbo].[TARIFF_CUSTOMER]
+			([TARIFF_ID]
+			,[COMPANY_ID])
+		SELECT
+			@TariffId,
+			COMPANYNR
+		FROM COMPANY WHERE CODE = @CustomerCode;
 	
-	return SCOPE_IDENTITY();
+	set nocount off;
+	
+	return @TariffId;
+	
 end
 go
 
@@ -100,13 +181,15 @@ create proc #CreateTariff
 	@TariffInfoDescr nvarchar(250),
 	@TariffInfoTariff decimal(18,3),
 	@UnitCode nvarchar(50),
+	@MeasurementUnitCode  nvarchar(50),
 	@CurrencyCode nvarchar(3),
 	@OperationCode nvarchar(50),
-	@OperationType nvarchar(10)
+	@OperationType nvarchar(10),
+	@CustomerCode nvarchar(50)
 as
 	declare @TariffId int
 begin
-	exec @TariffId = #CreateTariffInternal @TariffInfoCode, @TariffInfoDescr, @TariffInfoTariff, @UnitCode, @CurrencyCode, @OperationCode
+	exec @TariffId = #CreateTariffInternal @TariffInfoCode, @TariffInfoDescr, @TariffInfoTariff, @UnitCode, @MeasurementUnitCode, @CurrencyCode, @OperationCode, @CustomerCode
 	if CHARINDEX(N'D', @OperationType) > 0
 		INSERT INTO [dbo].[DISCHARGING_TARIFF]
 			 ([DISCHARGING_TARIFF_ID]
@@ -204,81 +287,161 @@ insert into [dbo].[VAS_OPERATION] ([VAS_OPERATION_ID],[CREATE_USER],[CREATE_TIME
 insert into [dbo].[VAS_OPERATION] ([VAS_OPERATION_ID],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] ) select o.OPERATION_ID ,'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'VRB2IBC'
 insert into [dbo].[VAS_OPERATION] ([VAS_OPERATION_ID],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] ) select o.OPERATION_ID ,'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'VRIBC2B'
 
-exec #CreateTariff 'TVRBB2BB', 'Repacking Big bag to Big bag', 19, 'TON', 'EUR', 'VRBB2BB', 'V'
-exec #CreateTariff 'TVRBB2B025', 'Repacking Big bag to 25kg bag', 35, 'TON', 'EUR', 'VRBB2B025', 'V'
-exec #CreateTariff 'TVRB2DRUM', 'Repacking bag to drum', 23, 'TON', 'EUR', 'VRB2DRUM', 'V'
-exec #CreateTariff 'TVRDRUM2B', 'Repacking drum to bag', 43, 'TON', 'EUR', 'VRDRUM2B', 'V'
-exec #CreateTariff 'TVRB2IBC', 'Repacking bag to IBC', 19, 'TON', 'EUR', 'VRB2IBC', 'V'
-exec #CreateTariff 'TVRIBC2B', 'Repacking IBC to bag', 43, 'TON', 'EUR', 'VRIBC2B', 'V'
+exec #CreateTariff 'TVRBB2BB', 'Repacking Big bag to Big bag', 19, 'Net', 'TON', 'EUR', 'VRBB2BB', 'V', 'CRI'
+exec #CreateTariff 'TVRBB2B025', 'Repacking Big bag to 25kg bag', 35, 'Net', 'TON', 'EUR', 'VRBB2B025', 'V', 'CRI'
+exec #CreateTariff 'TVRB2DRUM', 'Repacking bag to drum', 23, 'Net', 'TON', 'EUR', 'VRB2DRUM', 'V', 'CRI'
+exec #CreateTariff 'TVRDRUM2B', 'Repacking drum to bag', 43, 'Net', 'TON', 'EUR', 'VRDRUM2B', 'V', 'CRI'
+exec #CreateTariff 'TVRB2IBC', 'Repacking bag to IBC', 19, 'Net', 'TON', 'EUR', 'VRB2IBC', 'V', 'CRI'
+exec #CreateTariff 'TVRIBC2B', 'Repacking IBC to bag', 43, 'Net', 'TON', 'EUR', 'VRIBC2B', 'V', 'CRI'
 
 --exec #CreateTariff 'TSCBP', 'Block products', 10, 'TON', 'EUR', 'BP', 'S'
 --exec #CreateTariff 'TSCSL', 'Switch Location in Warehouse', 20, 'TON', 'EUR', 'SL', 'S'
 
-INSERT INTO [dbo].[UNIT]
-           ([DESCRIPTION]
-           ,[CREATE_USER]
-           ,[CREATE_TIMESTAMP]
-           ,[UPDATE_USER]
-           ,[UPDATE_TIMESTAMP]
-           ,[STATUS]
-           ,[CODE])
-     VALUES
-           ('Label' -- DESCRIPTION
-           ,'sys'
-           ,getdate()
-           ,'sys'
-           ,getdate()
-           ,1 - STATUS
-           ,'LBL')
-INSERT INTO [dbo].[UNIT]
-           ([DESCRIPTION]
-           ,[CREATE_USER]
-           ,[CREATE_TIMESTAMP]
-           ,[UPDATE_USER]
-           ,[UPDATE_TIMESTAMP]
-           ,[STATUS]
-           ,[CODE])
-     VALUES
-           ('Stencil' -- DESCRIPTION
-           ,'sys'
-           ,getdate()
-           ,'sys'
-           ,getdate()
-           ,1 - STATUS
-           ,'STENCIL')					 
-INSERT INTO [dbo].[UNIT]
-           ([DESCRIPTION]
-           ,[CREATE_USER]
-           ,[CREATE_TIMESTAMP]
-           ,[UPDATE_USER]
-           ,[UPDATE_TIMESTAMP]
-           ,[STATUS]
-           ,[CODE])
-     VALUES
-           ('Hour' -- DESCRIPTION
-           ,'sys'
-           ,getdate()
-           ,'sys'
-           ,getdate()
-           ,1 - STATUS
-           ,'HR')
+-- DISCHARGING into warehouse (ex-truck/container) – 3.99 EUR per pallet
+exec #CreateTariff 'CRI_DSCH', 'Discharging into warehouse (ex-truck/container)', 3.99, 'PAL', null, 'EUR', 'NULL', 'D', 'CRI'
 
-exec #CreateTariff 'TWBB', 'Weatherizing Big Bags', 4.9, 'BBG', 'EUR', 'WBB', 'A'
-exec #CreateTariff 'TCSL', 'Customer/Country specific label', 0.65, 'LBL', 'EUR', 'CSL', 'A'
-exec #CreateTariff 'TSML', 'Shipping marks labelling', 0.65, 'LBL', 'EUR', 'SML', 'A'
-exec #CreateTariff 'TPCH', 'Pallet Change (to 110x110 pallets)', 2.1, 'PAL', 'EUR', 'PCH', 'A'
-exec #CreateTariff 'TDBBPLT', 'De-stacking of Big Bags + re-palletize', 2.1, 'PAL', 'EUR', 'DBBPLT', 'A'
-exec #CreateTariff 'TPCHUS', 'Pallet Change (4 semi-way US to 4 way)', 2.1, 'PAL', 'EUR', 'PCHUS', 'A'
-exec #CreateTariff 'TCCL', 'Color Coding labelling', 0.65, 'PAL', 'EUR', 'CCL', 'A'
-exec #CreateTariff 'TSPAL', 'Securing pallet (drum or big bag)', 4.2, 'PAL', 'EUR', 'SPAL', 'A'
-exec #CreateTariff 'TTPT', 'Taking pictures of truck/container in loading process', 6, 'tr/ctn', 'EUR', 'TPT', 'A'
-exec #CreateTariff 'TSTENC', 'Stencilling', 65, 'STENCIL', 'EUR', 'STENC', 'A'
-exec #CreateTariff 'TISHPD', 'Issuing of shipment documents', 11.65, 'ORDER', 'EUR', 'ISHPD', 'A'
-exec #CreateTariff 'TPECNT', 'Preparing export container (blocking/bracing)', 12.5, 'ORDER', 'EUR', 'PECNT', 'A'
-exec #CreateTariff 'TPCSTD', 'Preparation of customs documents', 35, 'ORDER', 'EUR', 'PCSTD', 'A'
-exec #CreateTariff 'TAWHSP', 'Additional work hours / special project', 40, 'HR', 'EUR', 'AWHSP', 'A'
-exec #CreateTariff 'TAWHO', 'Additional work hours – overtime / special project', 50, 'HR', 'EUR', 'AWHO', 'A'
-exec #CreateTariff 'TAWHST', 'Additional work hours – Saturday / special project', 50, 'HR', 'EUR', 'AWHST', 'A'
-exec #CreateTariff 'TAWHSN', 'Additional work hours – Sunday / special project', 70, 'HR', 'EUR', 'AWHSN', 'A'
-exec #CreateTariff 'TAWHH', 'Additional work hours – Holiday / special project', 70, 'HR', 'EUR', 'AWHH', 'A'
+-- LOADING ex-warehouse (into truck/container) – 3.39 EUR per pallet
+exec #CreateTariff 'CRI_LDNG', 'Loading ex-warehouse (into truck/container)', 3.39, 'PAL', null, 'EUR', 'NULL', 'L', 'CRI'
+
+exec #CreateTariff 'TWBB', 'Weatherizing Big Bags', 4.9, 'BBG', null,'EUR', 'WBB', 'A', 'CRI'
+exec #CreateTariff 'TCSL', 'Customer/Country specific label', 0.65, 'LBL', null,'EUR', 'CSL', 'A', 'CRI'
+exec #CreateTariff 'TSML', 'Shipping marks labelling', 0.65, 'LBL', null,'EUR', 'SML', 'A', 'CRI'
+exec #CreateTariff 'TPCH', 'Pallet Change (to 110x110 pallets)', 2.1, 'PAL', null,'EUR', 'PCH', 'A', 'CRI'
+exec #CreateTariff 'TDBBPLT', 'De-stacking of Big Bags + re-palletize', 2.1, 'PAL', null,'EUR', 'DBBPLT', 'A', 'CRI'
+exec #CreateTariff 'TPCHUS', 'Pallet Change (4 semi-way US to 4 way)', 2.1, 'PAL', null,'EUR', 'PCHUS', 'A', 'CRI'
+exec #CreateTariff 'TCCL', 'Color Coding labelling', 0.65, 'PAL', null,'EUR', 'CCL', 'A', 'CRI'
+exec #CreateTariff 'TSPAL', 'Securing pallet (drum or big bag)', 4.2, 'PAL', null,'EUR', 'SPAL', 'A', 'CRI'
+exec #CreateTariff 'TTPT', 'Taking pictures of truck/container in loading process', 6, 'TPT', null,'EUR', 'ORDER', 'A', 'CRI'
+exec #CreateTariff 'TSTENC', 'Stencilling', 65, 'STENCIL', null,'EUR', 'STENC', 'A', 'CRI'
+exec #CreateTariff 'TISHPD', 'Issuing of shipment documents', 11.65, 'ORDER', null,'EUR', 'ISHPD', 'A', 'CRI'
+exec #CreateTariff 'TPECNT', 'Preparing export container (blocking/bracing)', 12.5, 'ORDER', null,'EUR', 'PECNT', 'A', 'CRI'
+exec #CreateTariff 'TPCSTD', 'Preparation of customs documents', 35, 'ORDER', null,'EUR', 'PCSTD', 'A', 'CRI'
+exec #CreateTariff 'TAWHSP', 'Additional work hours / special project', 40, 'HR', null,'EUR', 'AWHSP', 'A', 'CRI'
+exec #CreateTariff 'TAWHO', 'Additional work hours – overtime / special project', 50, 'HR', null,'EUR', 'AWHO', 'A', 'CRI'
+exec #CreateTariff 'TAWHST', 'Additional work hours – Saturday / special project', 50, 'HR', null,'EUR', 'AWHST', 'A', 'CRI'
+exec #CreateTariff 'TAWHSN', 'Additional work hours – Sunday / special project', 70, 'HR', null,'EUR', 'AWHSN', 'A', 'CRI'
+exec #CreateTariff 'TAWHH', 'Additional work hours – Holiday / special project', 70, 'HR', null,'EUR', 'AWHH', 'A', 'CRI'
+
+INSERT INTO [dbo].[OPERATION]([NAME],[DESCRIPTION],[CODE],[INTERNAL_COMPANY_ID],[TYPE_ID],[STATUS],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP])
+	SELECT 'Colorspraying','Colorspraying','ACLRSPRAY', c.COMPANYNR, ot.OPERATION_TYPE_ID, 0,'system', getdate(), 'system', getdate()
+	FROM COMPANY c, OPERATION_TYPE ot where c.CODE = 'IC_VMHZP' and ot.[DESCRIPTION]='Additional'
+insert into [dbo].[ADDITIONAL_OPERATION] ([ADDITIONAL_OPERATION_ID],[USAGE],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] )
+	select o.OPERATION_ID , 1,'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'ACLRSPRAY'
+exec #CreateTariff 'TACLRSPRAY', 'Colorspraying', 0, 'PCS', null,'EUR', 'ACLRSPRAY', 'A', 'CRI'
+insert into OPERATION_ADDITIONAL_OPERATION
+	select o.OPERATION_ID, ao.OPERATION_ID
+	from OPERATION o, OPERATION ao
+	where o.INTERNAL_COMPANY_ID = ao.INTERNAL_COMPANY_ID
+	and o.OPERATION_ID in (select LOADING_OPERATION_ID from LOADING_OPERATION union select VAS_OPERATION_ID from VAS_OPERATION)
+	and ao.CODE = 'ACLRSPRAY'
+
+INSERT INTO [dbo].[OPERATION]([NAME],[DESCRIPTION],[CODE],[INTERNAL_COMPANY_ID],[TYPE_ID],[STATUS],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP])
+	SELECT 'Put wooden top covers on goods','Put wooden top covers on goods','AWDTOPCOVERS', c.COMPANYNR, ot.OPERATION_TYPE_ID, 0,'system', getdate(), 'system', getdate()
+	FROM COMPANY c, OPERATION_TYPE ot where c.CODE = 'IC_VMHZP' and ot.[DESCRIPTION]='Additional'
+insert into [dbo].[ADDITIONAL_OPERATION] ([ADDITIONAL_OPERATION_ID],[USAGE],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] )
+	select o.OPERATION_ID , 1 ,'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'AWDTOPCOVERS'
+exec #CreateTariff 'TAWDTOPCOVERS', 'Put wooden top covers on goods', 0, 'PCS', null,'EUR', 'AWDTOPCOVERS', 'A', 'CRI'
+insert into OPERATION_ADDITIONAL_OPERATION
+	select o.OPERATION_ID, ao.OPERATION_ID
+	from OPERATION o, OPERATION ao
+	where o.INTERNAL_COMPANY_ID = ao.INTERNAL_COMPANY_ID
+	and o.OPERATION_ID in (select LOADING_OPERATION_ID from LOADING_OPERATION union select VAS_OPERATION_ID from VAS_OPERATION)
+	and ao.CODE = 'AWDTOPCOVERS'
+	
+INSERT INTO [dbo].[OPERATION]([NAME],[DESCRIPTION],[CODE],[INTERNAL_COMPANY_ID],[TYPE_ID],[STATUS],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP])
+	SELECT 'Crossdocking','Crossdocking','ACRSDOCKING', c.COMPANYNR, ot.OPERATION_TYPE_ID, 0,'system', getdate(), 'system', getdate()
+	FROM COMPANY c, OPERATION_TYPE ot where c.CODE = 'IC_VMHZP' and ot.[DESCRIPTION]='Additional'
+insert into [dbo].[ADDITIONAL_OPERATION] ([ADDITIONAL_OPERATION_ID],[USAGE],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] )
+	select o.OPERATION_ID , 0, 'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'ACRSDOCKING'
+exec #CreateTariff 'TACRSDOCKING', 'Crossdocking', -2.38, 'PAL', null,'EUR', 'ACRSDOCKING', 'A', 'CRI'
+insert into OPERATION_ADDITIONAL_OPERATION
+	select o.OPERATION_ID, ao.OPERATION_ID
+	from OPERATION o, OPERATION ao
+	where o.INTERNAL_COMPANY_ID = ao.INTERNAL_COMPANY_ID
+	and o.OPERATION_ID in (select LOADING_OPERATION_ID from LOADING_OPERATION)
+	and ao.CODE = 'ACRSDOCKING'
+	
+INSERT INTO [dbo].[OPERATION]([NAME],[DESCRIPTION],[CODE],[INTERNAL_COMPANY_ID],[TYPE_ID],[STATUS],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP])
+	SELECT 'Same Day rush order','Same Day rush order','ASAMEDAYRUSHORDER', c.COMPANYNR, ot.OPERATION_TYPE_ID, 0,'system', getdate(), 'system', getdate()
+	FROM COMPANY c, OPERATION_TYPE ot where c.CODE = 'IC_VMHZP' and ot.[DESCRIPTION]='Additional'
+insert into [dbo].[ADDITIONAL_OPERATION] ([ADDITIONAL_OPERATION_ID],[USAGE],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] )
+	select o.OPERATION_ID , 0, 'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'ASAMEDAYRUSHORDER'
+exec #CreateTariff 'TASAMEDAYRUSHORDER', 'Same Day rush order', 0, 'ORDER', null,'EUR', 'ASAMEDAYRUSHORDER', 'A', 'CRI'
+insert into OPERATION_ADDITIONAL_OPERATION
+	select o.OPERATION_ID, ao.OPERATION_ID
+	from OPERATION o, OPERATION ao
+	where o.INTERNAL_COMPANY_ID = ao.INTERNAL_COMPANY_ID
+	and o.OPERATION_ID in (select LOADING_OPERATION_ID from LOADING_OPERATION union select VAS_OPERATION_ID from VAS_OPERATION)
+	and ao.CODE = 'ASAMEDAYRUSHORDER'
+
+--exec CreateOperation 'AANNPHYSINVENT','IC_VMHZP','AA','Annual Physical Inventory','Annual Physical Inventory'
+--insert into [dbo].[ADDITIONAL_OPERATION] ([ADDITIONAL_OPERATION_ID],[USAGE],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] )
+-- select o.OPERATION_ID ,'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'ASAMEDAYRUSHORDER'
+--exec #CreateTariff 'TAANNPHYSINVENT', 'Annual Physical Inventory', 0, 'ORDER', null,'EUR', 'AANNPHYSINVENT', 'A', 'CRI'
+
+INSERT INTO [dbo].[OPERATION]([NAME],[DESCRIPTION],[CODE],[INTERNAL_COMPANY_ID],[TYPE_ID],[STATUS],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP])
+	SELECT 'Fees on customs duty outlays','Fees on customs duty outlays','AFEESCUSTDUTYOUTLAYS', c.COMPANYNR, ot.OPERATION_TYPE_ID, 0,'system', getdate(), 'system', getdate()
+	FROM COMPANY c, OPERATION_TYPE ot where c.CODE = 'IC_VMHZP' and ot.[DESCRIPTION]='Additional'
+insert into [dbo].[ADDITIONAL_OPERATION] ([ADDITIONAL_OPERATION_ID],[USAGE],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] )
+ select o.OPERATION_ID , 0, 'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'AFEESCUSTDUTYOUTLAYS'
+exec #CreateTariff 'TAFEESCUSTDUTYOUTLAYS', 'Fees on customs duty outlays', 0, 'ORDER', null,'EUR', 'AFEESCUSTDUTYOUTLAYS', 'A', 'CRI'
+insert into OPERATION_ADDITIONAL_OPERATION
+	select o.OPERATION_ID, ao.OPERATION_ID
+	from OPERATION o, OPERATION ao
+	where o.INTERNAL_COMPANY_ID = ao.INTERNAL_COMPANY_ID
+	and o.OPERATION_ID in (select LOADING_OPERATION_ID from LOADING_OPERATION union select VAS_OPERATION_ID from VAS_OPERATION union select DISCHARGING_OPERATION_ID from DISCHARGING_OPERATION)
+	and ao.CODE = 'AFEESCUSTDUTYOUTLAYS'
+	
+INSERT INTO [dbo].[OPERATION]([NAME],[DESCRIPTION],[CODE],[INTERNAL_COMPANY_ID],[TYPE_ID],[STATUS],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP])
+	SELECT 'Start-up and cleaning fee','Start-up and cleaning fee','ASNCLEANING', c.COMPANYNR, ot.OPERATION_TYPE_ID, 0,'system', getdate(), 'system', getdate()
+	FROM COMPANY c, OPERATION_TYPE ot where c.CODE = 'IC_VMHZP' and ot.[DESCRIPTION]='Additional'
+exec CreateOperation 'ASNCLEANING','IC_VMHZP','AA','Start-up and cleaning fee','Start-up and cleaning fee'
+insert into [dbo].[ADDITIONAL_OPERATION] ([ADDITIONAL_OPERATION_ID],[USAGE],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] )
+ select o.OPERATION_ID , 0, 'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'ASNCLEANING'
+exec #CreateTariff 'TASNCLEANING', 'Start-up and cleaning fee', 195, 'ORDER', null,'EUR', 'ASNCLEANING', 'A', 'CRI'
+insert into OPERATION_ADDITIONAL_OPERATION
+	select o.OPERATION_ID, ao.OPERATION_ID
+	from OPERATION o, OPERATION ao
+	where o.INTERNAL_COMPANY_ID = ao.INTERNAL_COMPANY_ID
+	and o.OPERATION_ID in (select LOADING_OPERATION_ID from LOADING_OPERATION union select VAS_OPERATION_ID from VAS_OPERATION union select DISCHARGING_OPERATION_ID from DISCHARGING_OPERATION)
+	and ao.CODE = 'ASNCLEANING'
+
+INSERT INTO [dbo].[OPERATION]([NAME],[DESCRIPTION],[CODE],[INTERNAL_COMPANY_ID],[TYPE_ID],[STATUS],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP])
+	SELECT 'Waste handling per Big bag','Waste handling per Big bag','AWSTHANBB', c.COMPANYNR, ot.OPERATION_TYPE_ID, 0,'system', getdate(), 'system', getdate()
+	FROM COMPANY c, OPERATION_TYPE ot where c.CODE = 'IC_VMHZP' and ot.[DESCRIPTION]='Additional'
+insert into [dbo].[ADDITIONAL_OPERATION] ([ADDITIONAL_OPERATION_ID],[USAGE],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] )
+	select o.OPERATION_ID , 0, 'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'AWSTHANBB'
+exec #CreateTariff 'TAWSTHANBB', 'Waste handling per Big bag', 0.8, 'BBG', null,'EUR', 'AWSTHANBB', 'A', 'CRI'
+insert into OPERATION_ADDITIONAL_OPERATION
+	select o.OPERATION_ID, ao.OPERATION_ID
+	from OPERATION o, OPERATION ao
+	where o.INTERNAL_COMPANY_ID = ao.INTERNAL_COMPANY_ID
+	and o.OPERATION_ID in (select LOADING_OPERATION_ID from LOADING_OPERATION union select VAS_OPERATION_ID from VAS_OPERATION union select DISCHARGING_OPERATION_ID from DISCHARGING_OPERATION)
+	and ao.CODE = 'AWSTHANBB'
+	
+INSERT INTO [dbo].[OPERATION]([NAME],[DESCRIPTION],[CODE],[INTERNAL_COMPANY_ID],[TYPE_ID],[STATUS],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP])
+	SELECT 'Waste handling Drum','Waste handling Drum','AWSTHANDRUM', c.COMPANYNR, ot.OPERATION_TYPE_ID, 0,'system', getdate(), 'system', getdate()
+	FROM COMPANY c, OPERATION_TYPE ot where c.CODE = 'IC_VMHZP' and ot.[DESCRIPTION]='Additional'
+insert into [dbo].[ADDITIONAL_OPERATION] ([ADDITIONAL_OPERATION_ID],[USAGE],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] )
+	select o.OPERATION_ID , 0, 'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'AWSTHANDRUM'
+exec #CreateTariff 'TAWSTHANDRUM', 'Waste handling Drum', 0.8, 'DRUM', null,'EUR', 'AWSTHANDRUM', 'A', 'CRI'
+insert into OPERATION_ADDITIONAL_OPERATION
+	select o.OPERATION_ID, ao.OPERATION_ID
+	from OPERATION o, OPERATION ao
+	where o.INTERNAL_COMPANY_ID = ao.INTERNAL_COMPANY_ID
+	and o.OPERATION_ID in (select LOADING_OPERATION_ID from LOADING_OPERATION union select VAS_OPERATION_ID from VAS_OPERATION union select DISCHARGING_OPERATION_ID from DISCHARGING_OPERATION)
+	and ao.CODE = 'AWSTHANDRUM'
+
+INSERT INTO [dbo].[OPERATION]([NAME],[DESCRIPTION],[CODE],[INTERNAL_COMPANY_ID],[TYPE_ID],[STATUS],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP])
+	SELECT 'Forklift work hours','Forklift work hours','AFRKLFTWRK', c.COMPANYNR, ot.OPERATION_TYPE_ID, 0,'system', getdate(), 'system', getdate()
+	FROM COMPANY c, OPERATION_TYPE ot where c.CODE = 'IC_VMHZP' and ot.[DESCRIPTION]='Additional'
+insert into [dbo].[ADDITIONAL_OPERATION] ([ADDITIONAL_OPERATION_ID],[USAGE],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] )
+	select o.OPERATION_ID , 0, 'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'AFRKLFTWRK'
+exec #CreateTariff 'TFRKLFTWRK', 'Forklift work hours', 0, 'HR', null,'EUR', 'AFRKLFTWRK', 'A', 'CRI'
+insert into OPERATION_ADDITIONAL_OPERATION
+	select o.OPERATION_ID, ao.OPERATION_ID
+	from OPERATION o, OPERATION ao
+	where o.INTERNAL_COMPANY_ID = ao.INTERNAL_COMPANY_ID
+	and o.OPERATION_ID in (select LOADING_OPERATION_ID from LOADING_OPERATION union select VAS_OPERATION_ID from VAS_OPERATION union select DISCHARGING_OPERATION_ID from DISCHARGING_OPERATION)
+	and ao.CODE = 'AFRKLFTWRK'
 

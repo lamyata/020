@@ -5,9 +5,11 @@ create proc #CreateTariffInternal
 	@UnitCode nvarchar(50),
 	@CurrencyCode nvarchar(3),
 	@OperationCode nvarchar(50),
+	@CustomerCode nvarchar(50),
 	@TariffInfoId int output
 as
-	declare @OperationId int
+	declare @OperationId int,
+	declare @TariffId int
 begin
 	set nocount on
 
@@ -68,9 +70,21 @@ begin
 	FROM TARIFF_INFO ti, TARIFF_FILE tf
 	WHERE ti.CODE = @TariffInfoCode AND tf.REFERENCE = 'CRI_TARIFF'
 
+	select @TariffId = SCOPE_IDENTITY();
+
+	if @CustomerCode is not null
+		INSERT INTO [dbo].[TARIFF_CUSTMER]
+			([TARIFF_ID]
+			,[COMPANY_ID])
+		SELECT
+			@TariffId,
+			COMPANYNR
+		FROM COMPANY WHERE CODE = @CustomerCode
+	
 	set nocount off
 	
-	return SCOPE_IDENTITY();
+	return @TariffId
+	
 end
 go
 

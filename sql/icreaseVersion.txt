@@ -1,0 +1,6 @@
+Do we have to increase the version?
+1. We increase version on Production branch only.
+2. Check when AssemblyVersion was modified.
+3. Check if there's a deployment pkg in \\tfs\deploy\DeploymentPackages\...
+	which is after the Assembly Version modif date (check the date from the filename or extract pkg to see version inside)
+4. Get latest

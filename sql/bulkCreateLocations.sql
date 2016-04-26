@@ -199,3 +199,22 @@ insert into [dbo].[LOCATION_INTERNAL_COMPANY] ( [LOCATION_ID],[INTERNAL_COMPANY_
 -- fix wrong locations
 update LOCATION set CODE = REPLACE(CODE, 'B', 'R'), [ADDRESS] = REPLACE(CODE, 'B', 'R'), [DESCRIPTION] = REPLACE(CODE, 'B', 'R')
 	where CODE like '1B__'
+
+-- more locations for VMG -  Ticket #271
+exec CreateLocation 'G7Z','G7Z','RACK Z',0,'Rack','7','','',null,null,null
+exec CreateLocation 'G7Z001','G7Z001','G7Z001',0,'Position','G7Z','','',null,null,null
+insert into [dbo].[LOCATION_INTERNAL_COMPANY] ( [LOCATION_ID],[INTERNAL_COMPANY_ID]) select l.LOCATION_ID, c.COMPANYNR from LOCATION l, COMPANY c WHERE l.ADDRESS ='G7Z' and c.CODE = 'IC_VMHZP'
+insert into [dbo].[LOCATION_INTERNAL_COMPANY] ( [LOCATION_ID],[INTERNAL_COMPANY_ID]) select l.LOCATION_ID, c.COMPANYNR from LOCATION l, COMPANY c WHERE l.ADDRESS ='G7Z001' and c.CODE = 'IC_VMHZP'
+
+exec CreateLocation 'X8A17','X8A17','X8A17',0,'Position','X8A','','',null,null,null
+exec CreateLocation 'X8B17','X8B17','X8B17',0,'Position','X8B','','',null,null,null
+exec CreateLocation 'X8C17','X8C17','X8C17',0,'Position','X8C','','',null,null,null
+exec CreateLocation 'X8D17','X8D17','X8D17',0,'Position','X8D','','',null,null,null
+exec CreateLocation 'X8E17','X8E17','X8E17',0,'Position','X8E','','',null,null,null
+exec CreateLocation 'X8F17','X8F17','X8F17',0,'Position','X8F','','',null,null,null
+insert into [dbo].[LOCATION_INTERNAL_COMPANY] ( [LOCATION_ID],[INTERNAL_COMPANY_ID]) select l.LOCATION_ID, c.COMPANYNR from LOCATION l, COMPANY c WHERE l.ADDRESS ='X8A17' and c.CODE = 'IC_VMHZP'
+insert into [dbo].[LOCATION_INTERNAL_COMPANY] ( [LOCATION_ID],[INTERNAL_COMPANY_ID]) select l.LOCATION_ID, c.COMPANYNR from LOCATION l, COMPANY c WHERE l.ADDRESS ='X8B17' and c.CODE = 'IC_VMHZP'
+insert into [dbo].[LOCATION_INTERNAL_COMPANY] ( [LOCATION_ID],[INTERNAL_COMPANY_ID]) select l.LOCATION_ID, c.COMPANYNR from LOCATION l, COMPANY c WHERE l.ADDRESS ='X8C17' and c.CODE = 'IC_VMHZP'
+insert into [dbo].[LOCATION_INTERNAL_COMPANY] ( [LOCATION_ID],[INTERNAL_COMPANY_ID]) select l.LOCATION_ID, c.COMPANYNR from LOCATION l, COMPANY c WHERE l.ADDRESS ='X8D17' and c.CODE = 'IC_VMHZP'
+insert into [dbo].[LOCATION_INTERNAL_COMPANY] ( [LOCATION_ID],[INTERNAL_COMPANY_ID]) select l.LOCATION_ID, c.COMPANYNR from LOCATION l, COMPANY c WHERE l.ADDRESS ='X8E17' and c.CODE = 'IC_VMHZP'
+insert into [dbo].[LOCATION_INTERNAL_COMPANY] ( [LOCATION_ID],[INTERNAL_COMPANY_ID]) select l.LOCATION_ID, c.COMPANYNR from LOCATION l, COMPANY c WHERE l.ADDRESS ='X8F17' and c.CODE = 'IC_VMHZP'
