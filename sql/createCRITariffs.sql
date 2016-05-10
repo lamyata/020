@@ -11,6 +11,7 @@ CREATE TABLE [dbo].[VAS_TARIFF]
 )
 */
 
+
 -- add static data
 INSERT INTO [dbo].[TARIFF_FILE]
 	([DESCRIPTION]
@@ -272,13 +273,18 @@ exec CreateOperation 'VRB2DRUM','IC_VMHZP','VAS','Repacking bag to drum','Repack
 exec CreateOperation 'VRDRUM2B','IC_VMHZP','VAS','Repacking drum to bag','Repacking drum to bag'
 exec CreateOperation 'VRB2IBC','IC_VMHZP','VAS','Repacking bag to IBC','Repacking bag to IBC'
 exec CreateOperation 'VRIBC2B','IC_VMHZP','VAS','Repacking IBC to bag','Repacking IBC to bag'
+exec CreateOperation 'SKU','IC_VMHZP','VAS','SKU Change','SKU Change'
 
-insert into [dbo].[OPERATION_SHIFT]([OPERATION_ID],[SHIFT_ID]) select o.OPERATION_ID, s.SHIFT_ID from OPERATION o, NS_SHIFT s where o.CODE = 'VRBB2BB' and s.CODE = '24'
-insert into [dbo].[OPERATION_SHIFT]([OPERATION_ID],[SHIFT_ID]) select o.OPERATION_ID, s.SHIFT_ID from OPERATION o, NS_SHIFT s where o.CODE = 'VRBB2B025' and s.CODE = '24'
-insert into [dbo].[OPERATION_SHIFT]([OPERATION_ID],[SHIFT_ID]) select o.OPERATION_ID, s.SHIFT_ID from OPERATION o, NS_SHIFT s where o.CODE = 'VRB2DRUM' and s.CODE = '24'
-insert into [dbo].[OPERATION_SHIFT]([OPERATION_ID],[SHIFT_ID]) select o.OPERATION_ID, s.SHIFT_ID from OPERATION o, NS_SHIFT s where o.CODE = 'VRDRUM2B' and s.CODE = '24'
-insert into [dbo].[OPERATION_SHIFT]([OPERATION_ID],[SHIFT_ID]) select o.OPERATION_ID, s.SHIFT_ID from OPERATION o, NS_SHIFT s where o.CODE = 'VRB2IBC' and s.CODE = '24'
-insert into [dbo].[OPERATION_SHIFT]([OPERATION_ID],[SHIFT_ID]) select o.OPERATION_ID, s.SHIFT_ID from OPERATION o, NS_SHIFT s where o.CODE = 'VRIBC2B' and s.CODE = '24'
+
+insert into [dbo].[OPERATION_SHIFT]([OPERATION_ID],[SHIFT_ID]) 
+select o.OPERATION_ID, s.SHIFT_ID from OPERATION o, NS_SHIFT s
+join  NS_SHIFT_INTERNAL_COMPANY si ON s.SHIFT_ID = si.SHIFT_ID
+join INTERNAL_COMPANY ic on si.INTERNAL_COMPANYNR = ic.COMPANYNR
+JOIN COMPANY c ON ic.COMPANYNR = c.COMPANYNR
+WHERE c.CODE = 'IC_VMHZP' and 
+	  s.CODE in ('D', 'N', 'MN', 'HD') AND 
+	  o.CODE IN ('VRBB2BB', 'VRBB2B025', 'VRB2DRUM', 'VRDRUM2B', 'VRB2IBC', 'VRIBC2B', 'SKU')
+																  
 
 insert into [dbo].[VAS_OPERATION] ([VAS_OPERATION_ID],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] ) select o.OPERATION_ID ,'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'VRBB2BB'
 insert into [dbo].[VAS_OPERATION] ([VAS_OPERATION_ID],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] ) select o.OPERATION_ID ,'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'VRBB2B025'
@@ -286,6 +292,7 @@ insert into [dbo].[VAS_OPERATION] ([VAS_OPERATION_ID],[CREATE_USER],[CREATE_TIME
 insert into [dbo].[VAS_OPERATION] ([VAS_OPERATION_ID],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] ) select o.OPERATION_ID ,'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'VRDRUM2B'
 insert into [dbo].[VAS_OPERATION] ([VAS_OPERATION_ID],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] ) select o.OPERATION_ID ,'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'VRB2IBC'
 insert into [dbo].[VAS_OPERATION] ([VAS_OPERATION_ID],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] ) select o.OPERATION_ID ,'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'VRIBC2B'
+insert into [dbo].[VAS_OPERATION] ([VAS_OPERATION_ID],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] ) select o.OPERATION_ID ,'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'SKU'
 
 exec #CreateTariff 'TVRBB2BB', 'Repacking Big bag to Big bag', 19, 'Net', 'TON', 'EUR', 'VRBB2BB', 'V', 'CRI'
 exec #CreateTariff 'TVRBB2B025', 'Repacking Big bag to 25kg bag', 35, 'Net', 'TON', 'EUR', 'VRBB2B025', 'V', 'CRI'
@@ -293,6 +300,7 @@ exec #CreateTariff 'TVRB2DRUM', 'Repacking bag to drum', 23, 'Net', 'TON', 'EUR'
 exec #CreateTariff 'TVRDRUM2B', 'Repacking drum to bag', 43, 'Net', 'TON', 'EUR', 'VRDRUM2B', 'V', 'CRI'
 exec #CreateTariff 'TVRB2IBC', 'Repacking bag to IBC', 19, 'Net', 'TON', 'EUR', 'VRB2IBC', 'V', 'CRI'
 exec #CreateTariff 'TVRIBC2B', 'Repacking IBC to bag', 43, 'Net', 'TON', 'EUR', 'VRIBC2B', 'V', 'CRI'
+exec #CreateTariff 'TCRISKU', 'SKU Change', 5.50, 'PAL', null, 'EUR', 'SKU', 'V', 'CRI'
 
 --exec #CreateTariff 'TSCBP', 'Block products', 10, 'TON', 'EUR', 'BP', 'S'
 --exec #CreateTariff 'TSCSL', 'Switch Location in Warehouse', 20, 'TON', 'EUR', 'SL', 'S'
@@ -311,7 +319,7 @@ exec #CreateTariff 'TDBBPLT', 'De-stacking of Big Bags + re-palletize', 2.1, 'PA
 exec #CreateTariff 'TPCHUS', 'Pallet Change (4 semi-way US to 4 way)', 2.1, 'PAL', null,'EUR', 'PCHUS', 'A', 'CRI'
 exec #CreateTariff 'TCCL', 'Color Coding labelling', 0.65, 'PAL', null,'EUR', 'CCL', 'A', 'CRI'
 exec #CreateTariff 'TSPAL', 'Securing pallet (drum or big bag)', 4.2, 'PAL', null,'EUR', 'SPAL', 'A', 'CRI'
-exec #CreateTariff 'TTPT', 'Taking pictures of truck/container in loading process', 6, 'TPT', null,'EUR', 'ORDER', 'A', 'CRI'
+exec #CreateTariff 'TTPT', 'Taking pictures of truck/container in loading process', 6, 'TRP', null,'EUR', 'ORDER', 'A', 'CRI'
 exec #CreateTariff 'TSTENC', 'Stencilling', 65, 'STENCIL', null,'EUR', 'STENC', 'A', 'CRI'
 exec #CreateTariff 'TISHPD', 'Issuing of shipment documents', 11.65, 'ORDER', null,'EUR', 'ISHPD', 'A', 'CRI'
 exec #CreateTariff 'TPECNT', 'Preparing export container (blocking/bracing)', 12.5, 'ORDER', null,'EUR', 'PECNT', 'A', 'CRI'
@@ -445,3 +453,55 @@ insert into OPERATION_ADDITIONAL_OPERATION
 	and o.OPERATION_ID in (select LOADING_OPERATION_ID from LOADING_OPERATION union select VAS_OPERATION_ID from VAS_OPERATION union select DISCHARGING_OPERATION_ID from DISCHARGING_OPERATION)
 	and ao.CODE = 'AFRKLFTWRK'
 
+-- Fast SKU Change additional operation
+	INSERT INTO [dbo].[OPERATION]([NAME],[DESCRIPTION],[CODE],[INTERNAL_COMPANY_ID],[TYPE_ID],[STATUS],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP])
+	SELECT 'Fast SKU Change','Fast SKU Change','FCRISKU', c.COMPANYNR, ot.OPERATION_TYPE_ID, 0,'system', getdate(), 'system', getdate()
+	FROM COMPANY c, OPERATION_TYPE ot where c.CODE = 'IC_VMHZP' and ot.[DESCRIPTION]='Additional'
+
+insert into [dbo].[ADDITIONAL_OPERATION] ([ADDITIONAL_OPERATION_ID],[USAGE],[CREATE_USER],[CREATE_TIMESTAMP],[UPDATE_USER],[UPDATE_TIMESTAMP] )
+	select o.OPERATION_ID , 1,'system', getdate(), 'system', getdate() from OPERATION o where o.CODE = 'FCRISKU'
+
+exec #CreateTariff 'TFCRISKU', 'Fast SKU Change', 0.55, 'PAL', null,'EUR', 'FCRISKU', 'A', 'CRI'
+
+insert into OPERATION_ADDITIONAL_OPERATION
+	select o.OPERATION_ID, ao.OPERATION_ID
+	from OPERATION o, OPERATION ao
+	where o.INTERNAL_COMPANY_ID = ao.INTERNAL_COMPANY_ID
+	and o.OPERATION_ID in (select OPERATION_ID from VAS_OPERATION vo INNER JOIN OPERATION o ON vo.VAS_OPERATION_ID = o.OPERATION_ID WHERE o.CODE = 'SKU') 
+	and ao.CODE = 'FCRISKU'
+
+-- Set service accounts.
+
+UPDATE TARIFF_INFO 
+SET SERVICE_ACCOUNT = '701300' -- Loading
+WHERE TARIFF_INFO_ID IN (
+	SELECT t.TARIFF_INFO_ID FROM TARIFF t
+	JOIN LOADING_TARIFF lt ON t.TARIFF_ID = lt.LOADING_TARIFF_ID
+	JOIN TARIFF_FILE tf ON t.TARIFF_FILE_ID = tf.TARIFF_FILE_ID
+	WHERE tf.REFERENCE = 'CRI_TARIFF' )
+
+UPDATE TARIFF_INFO 
+SET SERVICE_ACCOUNT = '701300' -- Discharging
+WHERE TARIFF_INFO_ID IN (
+	SELECT t.TARIFF_INFO_ID FROM TARIFF t
+	JOIN DISCHARGING_TARIFF dt ON t.TARIFF_ID = dt.DISCHARGING_TARIFF_ID
+	JOIN TARIFF_FILE tf ON t.TARIFF_FILE_ID = tf.TARIFF_FILE_ID
+	WHERE tf.REFERENCE = 'CRI_TARIFF' )
+
+UPDATE TARIFF_INFO 
+SET SERVICE_ACCOUNT = '701310' -- Additional
+WHERE TARIFF_INFO_ID IN (
+	SELECT t.TARIFF_INFO_ID FROM TARIFF t
+	JOIN ADDITIONAL_TARIFF at ON t.TARIFF_ID = at.ADDITIONAL_TARIFF_ID
+	JOIN TARIFF_FILE tf ON t.TARIFF_FILE_ID = tf.TARIFF_FILE_ID
+	WHERE tf.REFERENCE = 'CRI_TARIFF' )
+
+/*
+UPDATE TARIFF_INFO 
+SET SERVICE_ACCOUNT = '' -- VAS
+WHERE TARIFF_INFO_ID IN (
+	SELECT t.TARIFF_INFO_ID FROM TARIFF t
+	JOIN VAS_TARIFF vt ON t.TARIFF_ID = vt.VAS_TARIFF_ID
+	JOIN TARIFF_FILE tf ON t.TARIFF_FILE_ID = tf.TARIFF_FILE_ID
+	WHERE tf.REFERENCE = 'CRI_TARIFF' )
+*/
