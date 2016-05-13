@@ -14,3 +14,15 @@
         }
 
 HP_LaserJet_400_MFP_M425
+
+
+                <td class="table-view-cell-value">
+                    @(Html.Kendo().MultiSelect().Name("statuses")
+                        .Placeholder(Strings.msgSelect)
+                        .DataTextField("Text")
+                        .DataValueField("Value")
+                        .HtmlAttributes(new { data_bind = "value: Statuses", style = "box-sizing:border-box;" })
+                        .DataSource(source => source.Read(read => read.Action("Values", "iBoris.iTos.Transports.TransportStatus")))
+                        .Events(e => e.DataBound("initTransportFilter"))
+                    )
+                </td>

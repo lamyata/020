@@ -10,6 +10,12 @@ itos.vanmoergroup.com
 itos-uat.vanmoergroup.com
 C:\Applications\FS_ROOT
 
+vln.uat.itos.iboris.eu	vln.uat.papi.itos.iboris.eu
+\\itos\FileStorage\iTos\VLN
+
+vln.test.itos.iboris.eu	vln.test.papi.itos.iboris.eu
+\\itos\FileStorage\iTos\VLN
+
 vmg.uat.itos.iboris.eu
 \\itos\FileStorage\iTos\UAT
 

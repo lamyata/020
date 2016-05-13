@@ -35,3 +35,8 @@ The above code could return more than ten rows, e.g. if there are two people of 
 JournalDaoNhibernate.cs
 InternalCompany internalCompany = null;
 query.JoinAlias(x => x.InternalCompany, () => internalCompany, JoinType.LeftOuterJoin);
+---
+Find Current Location of Data and Log File of All the Database
+
+SELECT name, physical_name AS current_file_location
+FROM sys.master_files 
