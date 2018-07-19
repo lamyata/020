@@ -1,9 +1,0 @@
-All,
-
-Please, avoid using EntityFilter.Ids at all costs! 
-In most of the cases there are better performant ways to retrieve the same data, so this approach must be considered an anti-pattern. It should be used only in case there are no other options, so please think twice before using it ?
-
-The same goes for EntityFilter.ExcludeIds as well.
-
-Regards,
-Yordan

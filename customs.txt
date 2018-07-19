@@ -1,5 +1,0 @@
-Customs documents can be separated in three major categories:
-
-- Inbound – documents that accompany the discharging operations when it comes to import of goods
-- Follow Up – additional documents that accompany the goods or that change the customs status of the goods (e.g. Customs Clearance). They are related to a specific Inbound document
-- Outbound – documents that accompany the loading operations (export / transshipment of goods). Related to 1 or more Inbound documents
